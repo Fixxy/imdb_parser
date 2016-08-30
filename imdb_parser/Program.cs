@@ -27,20 +27,18 @@ namespace imdb_parser
                 string startYear = args[0];
                 string endYear = args[1];
                 string startFrom = args[2];
-                string genres = args[3].Trim();
                 string genresURL = "";
-                string rpp = args[4];
-
+                string genres = args[3].Trim();
                 if (genres != "all") { genresURL = "&genres=" + genres; }
-
-                //regex
-                string titleCountPattern = @"of\s(.*?)\stitles";
+                string rpp = args[4];
 
                 //initialize PhantomJS
                 Console.WriteLine("Initializing PhantomJS");
+
                 var service = PhantomJSDriverService.CreateDefaultService();
                 service.HideCommandPromptWindow = true;
                 PhantomJSDriver driver = new PhantomJSDriver(service);
+
                 Console.WriteLine("Opening IMDb.com");
                 string startURL = "http://www.imdb.com/search/title?year=" + startYear + "," + endYear + "&title_type=feature&sort=moviemeter,asc&count=" + rpp + "&start=" + startFrom + "" + genresURL;
                 driver.Navigate().GoToUrl(startURL);
@@ -48,17 +46,17 @@ namespace imdb_parser
                 //get a number of titles, that we've got
                 IWebElement titleCountString = driver.FindElement(By.XPath("//div[@class='nav']/div[@class='desc']"));
 
-                int titleCount = Convert.ToInt32((Regex.Match(titleCountString.Text, titleCountPattern)).Groups[1].Value.Replace(" ", ""));
+                int titleCount = Convert.ToInt32((Regex.Match(titleCountString.Text, @"of\s(.*?)\stitles")).Groups[1].Value.Replace(" ", ""));
                 Console.WriteLine("Found {0} records", titleCount);
 
                 //go through every title on the current page
                 for (int i = 0; i < Convert.ToInt32(rpp); i++)
                 {
                     IWebElement title = driver.FindElement(By.XPath("//div[@class='lister-list']/div[@class='lister-item mode-advanced'][" + (i + 1) + "]/div[@class='lister-item-content']/h3[@class='lister-item-header']/a[1]"));
-
                     string movieURL = title.GetAttribute("href");
                     Console.WriteLine("=============================");
                     Console.WriteLine("Opening url: {0}", movieURL);
+
                     driver.Navigate().GoToUrl(movieURL);
                     getMovieInfo(driver);
                     driver.Navigate().Back();
@@ -75,49 +73,72 @@ namespace imdb_parser
             string movieID = Regex.Match(driver.Url, @"imdb.com\/title\/(.*?)\/\?").Groups[1].Value;
             Console.WriteLine("ID: {0}", movieID);
 
-            //title (try original first)
+            //title (original title is a priority)
+            string title;
             try
             {
-                IWebElement title = driver.FindElement(By.XPath("//div[@class='originalTitle']"));
-                Match origTitle = Regex.Match(title.Text, @"(.*?)\s\((.*?)");
+                IWebElement titleSource = driver.FindElement(By.XPath("//div[@class='originalTitle']"));
+                Match origTitle = Regex.Match(titleSource.Text, @"(.*?)\s\((.*?)");
                 Console.WriteLine("Title: {0}", origTitle.Groups[1]);
+                title = origTitle.Groups[1].Value;
             }
             catch
             {
-                IWebElement title = driver.FindElement(By.XPath("//div[@class='title_wrapper']/h1[1]"));
-                Console.WriteLine("Title: {0}", title.Text);
+                IWebElement titleSource = driver.FindElement(By.XPath("//div[@class='title_wrapper']/h1[1]"));
+                Console.WriteLine("Title: {0}", titleSource.Text);
+                title = titleSource.Text;
             }
+
+            //year
+            IWebElement year = driver.FindElementByXPath("//span[@id='titleYear']");
+            Console.WriteLine("Year: {0}", year.Text);
 
             //description
             IWebElement description = driver.FindElement(By.XPath("//div[@class='plot_summary ']/div[@class='summary_text']"));
             Console.WriteLine("Description: {0}", description.Text);
 
             //first few stars
+            Dictionary<string,string> starsList = new Dictionary<string,string>();
             var briefStars = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
             foreach (IWebElement star in briefStars)
             {
                 string starID = (Regex.Match(star.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
+                starsList.Add(star.Text, starID);
                 Console.WriteLine("- star: {0} ({1})", star.Text, starID);
             }
 
             //directors
+            Dictionary<string, string> directorsList = new Dictionary<string, string>();
             var directors = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='director']/a");
             foreach (IWebElement director in directors)
             {
                 string directorID = (Regex.Match(director.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
+                directorsList.Add(director.Text, directorID);
                 Console.WriteLine("-- director: {0} ({1})", director.Text, directorID);
             }
 
             //stills
+            List<string> stillsList = new List<string>();
             driver.Navigate().GoToUrl("http://www.imdb.com/title/" + movieID + "/mediaindex?refine=still_frame");
-
             var thumbnailGrid = driver.FindElementsByXPath("//div[@id='media_index_thumbnail_grid']/a/img");
             foreach (IWebElement thumbnail in thumbnailGrid)
             {
-                //Console.WriteLine("--- photo url: {0}", thumbnail.GetAttribute("src"));
+                stillsList.Add(thumbnail.GetAttribute("src"));
             }
-
             driver.Navigate().Back();
+
+            //save everything to mysql db
+            saveToMySQL(movieID, title, year.Text, description.Text, starsList, directorsList, stillsList);
+            starsList.Clear();
+            directorsList.Clear();
+        }
+
+        static void saveToMySQL(string movieID, string title, string year, string description, Dictionary<string,string> starsList, Dictionary<string, string> directorsList, List<string> stillsList)
+        {
+            MySQL mysql = new MySQL();
+            mysql.connect("localhost", "3306", "imdb_test", "root", "");
+            mysql.upload(movieID, title, year, description, starsList, directorsList, stillsList);
+            mysql.disconnect();
         }
     }
 }

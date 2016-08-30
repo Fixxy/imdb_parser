@@ -37,6 +37,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="MySql.Data, Version=6.9.9.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL" />
     <Reference Include="Selenium.WebDriverBackedSelenium">
       <HintPath>..\Selenium\Selenium.WebDriverBackedSelenium.dll</HintPath>
     </Reference>
