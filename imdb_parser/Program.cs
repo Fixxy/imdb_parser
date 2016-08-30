@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 using OpenQA.Selenium;
 using OpenQA.Selenium.PhantomJS;
 using OpenQA.Selenium.Support.UI;
- 
+
 namespace imdb_parser
 {
     class Program
