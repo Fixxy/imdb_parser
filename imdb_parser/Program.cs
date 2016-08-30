@@ -16,34 +16,49 @@ namespace imdb_parser
         {
             if (args.Length == 0)
             {
-                Console.WriteLine("No arguments provided.\nSyntax: .exe <start_year> <end_year> <starting_record> <records_per_page>");
+                Console.WriteLine("No arguments provided.\nSyntax: .exe <start_year> <end_year> <starting_record> <genres> <records_per_page>");
+                Console.WriteLine("\r\nGenres: all - all genres;");
+                Console.WriteLine("        specific - action,adventure,animation,biography,comedy,crime,documentary,");
+                Console.WriteLine("        drama,family,fantasy,film_noir,game_show,history,horror,music,musical,");
+                Console.WriteLine("        mystery,news,reality_tv,romance,sci_fi,sport,talk_show,thriller,war,western");
             }
             else
             {
                 string startYear = args[0];
                 string endYear = args[1];
                 string startFrom = args[2];
-                string rpp = args[3];
+                string genres = args[3].Trim();
+                string genresURL = "";
+                string rpp = args[4];
 
+                if (genres != "all") { genresURL = "&genres=" + genres; }
+
+                //regex
                 string titleCountPattern = @"of\s(.*?)\stitles";
 
                 //initialize PhantomJS
-                PhantomJSDriver driver = new PhantomJSDriver();
-                string startURL = "http://www.imdb.com/search/title?year=" + startYear + "," + endYear + "&title_type=feature&sort=moviemeter,asc&count=" + rpp + "&start=" + startFrom;
+                Console.WriteLine("Initializing PhantomJS");
+                var service = PhantomJSDriverService.CreateDefaultService();
+                service.HideCommandPromptWindow = true;
+                PhantomJSDriver driver = new PhantomJSDriver(service);
+                Console.WriteLine("Opening IMDb.com");
+                string startURL = "http://www.imdb.com/search/title?year=" + startYear + "," + endYear + "&title_type=feature&sort=moviemeter,asc&count=" + rpp + "&start=" + startFrom + "" + genresURL;
                 driver.Navigate().GoToUrl(startURL);
 
                 //get a number of titles, that we've got
-                IWebElement titleCountString = driver.FindElement(By.XPath("//div[@id='main']/div[@class='leftright']/div[@id='left']"));
-                int titleCount = Convert.ToInt32((Regex.Match(titleCountString.Text, titleCountPattern)).Groups[1].Value.Replace(",", ""));
-                Console.WriteLine("\r\n#titleCount:{0}", titleCount);
+                IWebElement titleCountString = driver.FindElement(By.XPath("//div[@class='nav']/div[@class='desc']"));
+
+                int titleCount = Convert.ToInt32((Regex.Match(titleCountString.Text, titleCountPattern)).Groups[1].Value.Replace(" ", ""));
+                Console.WriteLine("Found {0} records", titleCount);
 
                 //go through every title on the current page
-                for (int i = 1; i <= Convert.ToInt32(rpp); i++)
+                for (int i = 0; i < Convert.ToInt32(rpp); i++)
                 {
-                    IWebElement number = driver.FindElement(By.XPath("//table[@class='results']/tbody[1]/tr[" + (i + 1) + "]/td[@class='number']"));
-                    IWebElement title = driver.FindElement(By.XPath("//table[@class='results']/tbody[1]/tr[" + (i + 1) + "]/td[@class='title']/a[1]"));
+                    IWebElement title = driver.FindElement(By.XPath("//div[@class='lister-list']/div[@class='lister-item mode-advanced'][" + (i + 1) + "]/div[@class='lister-item-content']/h3[@class='lister-item-header']/a[1]"));
+
                     string movieURL = title.GetAttribute("href");
-                    Console.WriteLine("\r\n[{0}] Opening url: {1}", number.Text.Replace(".",""), movieURL);
+                    Console.WriteLine("=============================");
+                    Console.WriteLine("Opening url: {0}", movieURL);
                     driver.Navigate().GoToUrl(movieURL);
                     getMovieInfo(driver);
                     driver.Navigate().Back();
@@ -59,27 +74,28 @@ namespace imdb_parser
             //title
             try
             {
-                IWebElement title = driver.FindElement(By.XPath("//table[@id='title-overview-widget-layout']/tbody[1]/tr[1]/td[@id='overview-top']/h1[@class='header']/span[@class='title-extra']"));
-                Match origTitle = Regex.Match(title.Text, "\"(.*?)\"");
-                Console.WriteLine("Title:{0}", origTitle.Groups[1]);
+                IWebElement title = driver.FindElement(By.XPath("//div[@class='originalTitle']"));
+                Match origTitle = Regex.Match(title.Text, @"(.*?)\s\((.*?)");
+                Console.WriteLine("Title: {0}", origTitle.Groups[1]);
             }
             catch
             {
-                IWebElement title = driver.FindElement(By.XPath("//table[@id='title-overview-widget-layout']/tbody[1]/tr[1]/td[@id='overview-top']/h1[@class='header']/span[@class='itemprop']"));
-                Console.WriteLine("Title:{0}", title.Text);
+                IWebElement title = driver.FindElement(By.XPath("//div[@class='title_wrapper']/h1[1]"));
+                Console.WriteLine("Title: {0}", title.Text);
             }
 
             //description
-            IWebElement description = driver.FindElement(By.XPath("//td[@id='overview-top']/p[@itemprop='description']"));
-            Console.WriteLine("Description:{0}", description.Text);
+            IWebElement description = driver.FindElement(By.XPath("//div[@class='plot_summary ']/div[@class='summary_text']"));
+            Console.WriteLine("Description: {0}", description.Text);
 
-            //director
-            IWebElement director = driver.FindElement(By.XPath("//td[@id='overview-top']/div[@itemprop='director']/a[1]/span[1]"));
-            IWebElement directorURL = driver.FindElement(By.XPath("//td[@id='overview-top']/div[@itemprop='director']/a[1]"));
+            //first few stars
+            var briefStars = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
+            foreach (IWebElement star in briefStars)
+            {
+                Console.WriteLine("- star: {0} ({1})", star.Text, star.GetAttribute("href"));
+            }
 
-            Match directorID = Regex.Match(directorURL.GetAttribute("href"), @"\/name\/(.*?)\/");
-
-            Console.WriteLine("Director:{0} (id:{1})", director.Text, directorID.Groups[1]);
+            //todo: director
         }
     }
 }
