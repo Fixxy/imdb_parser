@@ -71,7 +71,11 @@ namespace imdb_parser
         //getting movie info
         static void getMovieInfo(PhantomJSDriver driver)
         {
-            //title
+            //global id
+            string movieID = Regex.Match(driver.Url, @"imdb.com\/title\/(.*?)\/\?").Groups[1].Value;
+            Console.WriteLine("ID: {0}", movieID);
+
+            //title (try original first)
             try
             {
                 IWebElement title = driver.FindElement(By.XPath("//div[@class='originalTitle']"));
@@ -92,10 +96,28 @@ namespace imdb_parser
             var briefStars = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
             foreach (IWebElement star in briefStars)
             {
-                Console.WriteLine("- star: {0} ({1})", star.Text, star.GetAttribute("href"));
+                string starID = (Regex.Match(star.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
+                Console.WriteLine("- star: {0} ({1})", star.Text, starID);
             }
 
-            //todo: director
+            //directors
+            var directors = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='director']/a");
+            foreach (IWebElement director in directors)
+            {
+                string directorID = (Regex.Match(director.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
+                Console.WriteLine("-- director: {0} ({1})", director.Text, directorID);
+            }
+
+            //stills
+            driver.Navigate().GoToUrl("http://www.imdb.com/title/" + movieID + "/mediaindex?refine=still_frame");
+
+            var thumbnailGrid = driver.FindElementsByXPath("//div[@id='media_index_thumbnail_grid']/a/img");
+            foreach (IWebElement thumbnail in thumbnailGrid)
+            {
+                //Console.WriteLine("--- photo url: {0}", thumbnail.GetAttribute("src"));
+            }
+
+            driver.Navigate().Back();
         }
     }
 }
