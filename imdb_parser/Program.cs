@@ -106,14 +106,14 @@ namespace imdb_parser
             string description = driver.FindElement(By.XPath("//div[@class='plot_summary ']/div[@class='summary_text']")).Text;
             Console.WriteLine("Description: {0}", description);
 
-            //first few stars
-            Dictionary<string,string> starsList = new Dictionary<string,string>();
-            var briefStars = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
-            foreach (IWebElement star in briefStars)
+            //first few actors
+            Dictionary<string,string> actorsList = new Dictionary<string,string>();
+            var briefActors = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
+            foreach (IWebElement actor in briefActors)
             {
-                string starID = (Regex.Match(star.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
-                starsList.Add(star.Text, starID);
-                Console.WriteLine("- star: {0} ({1})", star.Text, starID);
+                string actorID = (Regex.Match(actor.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
+                actorsList.Add(actor.Text, actorID);
+                Console.WriteLine("- actor: {0} ({1})", actor.Text, actorID);
             }
 
             //directors
@@ -137,16 +137,16 @@ namespace imdb_parser
             driver.Navigate().Back();
 
             //save everything to mysql db
-            saveToMySQL(movieID, title, year, genresList, description, starsList, directorsList, stillsList);
-            starsList.Clear();
+            saveToMySQL(movieID, title, year, genresList, description, actorsList, directorsList, stillsList);
+            actorsList.Clear();
             directorsList.Clear();
         }
 
-        static void saveToMySQL(string movieID, string title, string year, List<string> genresList, string description, Dictionary<string,string> starsList, Dictionary<string, string> directorsList, List<string> stillsList)
+        static void saveToMySQL(string movieID, string title, string year, List<string> genresList, string description, Dictionary<string,string> actorsList, Dictionary<string, string> directorsList, List<string> stillsList)
         {
             MySQL mysql = new MySQL();
             mysql.connect("localhost", "3306", "imdb_test", "root", "");
-            mysql.upload(movieID, title, year, genresList, description, starsList, directorsList, stillsList);
+            mysql.upload(movieID, title, year, genresList, description, actorsList, directorsList, stillsList);
             mysql.disconnect();
         }
     }
