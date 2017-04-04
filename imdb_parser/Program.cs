@@ -102,8 +102,8 @@ namespace imdb_parser
                 Console.WriteLine("Genre: {0}", genre.Text);
             }
 
-            //description
-            string description = driver.FindElement(By.XPath("//div[@class='plot_summary ']/div[@class='summary_text']")).Text;
+            //description 
+            string description = driver.FindElement(By.XPath("//div[contains(@class,'plot_summary')]/div[@class='summary_text']")).Text;
             Console.WriteLine("Description: {0}", description);
 
             //first few actors
