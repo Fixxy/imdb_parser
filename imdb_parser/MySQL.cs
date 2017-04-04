@@ -25,7 +25,7 @@ namespace imdb_parser
             dbcon.Open();
         }
 
-        public void upload(string movieID, string title, string year, List<string> genresList, string description, Dictionary<string, string> actorsList, Dictionary<string, string> directorsList, List<string> stillsList)
+        public void upload(string movieID, string title, string year, List<string> genresList, string description, Dictionary<string, string> actorsList, Dictionary<string, string> directorsList, List<string> stillsList, Dictionary<string, string> actorsPhotos)
         {
             IDbCommand dbcmd = dbcon.CreateCommand();
             string genresComma = "";
@@ -57,7 +57,7 @@ namespace imdb_parser
                 dbcmd.CommandText = mysqlInsertFilms;
                 dbcmd.ExecuteNonQuery();
 
-                //todo: rewrite this bit (can be done 1 query)
+                //TODO: rewrite this bit (can be done 1 query)
                 //add new actors and directors to imdb_test.actors and imdb_test.directors
                 foreach (KeyValuePair<string, string> actor in actorsList)
                 {
@@ -72,6 +72,22 @@ namespace imdb_parser
                         dbcmd.ExecuteNonQuery();
                     }
                 }
+                
+                //add actors' photos
+                foreach (KeyValuePair<string, string> photo in actorsPhotos)
+                {
+                    //check if photo is already present
+                    int photoCount = mysqlExists(dbcmd, "SELECT url FROM imdb_test.actors WHERE actor_id = '" + photo.Key + "';");
+                    if (photoCount > 0) { Console.WriteLine("Actor's photo {0} was found, do nothing.", photo.Key); }
+                    else
+                    {
+                        Console.WriteLine("Actor's photo {0} was not found, adding url...", photo.Key);
+                        string mysqlInsertActors = "UPDATE imdb_test.actors SET url = '" + photo.Value + "' WHERE actor_id = '" + photo.Key + "';";
+                        dbcmd.CommandText = mysqlInsertActors;
+                        dbcmd.ExecuteNonQuery();
+                    }
+                }
+
                 foreach (KeyValuePair<string, string> director in directorsList)
                 {
                     //check if director is already present
@@ -122,8 +138,15 @@ namespace imdb_parser
             {
                 while (rdr.Read())
                 {
-                    var myString = rdr.GetString(0);
-                    firstResult.Add(myString);
+                    try
+                    {
+                        var myString = rdr.GetString(0);
+                        firstResult.Add(myString);
+                    }
+                    catch
+                    {
+                        firstResult.Clear();
+                    }
                 }
                 rdr.Close();
             }

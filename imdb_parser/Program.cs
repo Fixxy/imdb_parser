@@ -59,7 +59,7 @@ namespace imdb_parser
 
                     driver.Navigate().GoToUrl(movieURL);
                     getMovieInfo(driver);
-                    driver.Navigate().Back();
+                    driver.Navigate().GoToUrl(startURL);
                 }
                 driver.Close();
                 driver.Quit();
@@ -106,16 +106,6 @@ namespace imdb_parser
             string description = driver.FindElement(By.XPath("//div[contains(@class,'plot_summary')]/div[@class='summary_text']")).Text;
             Console.WriteLine("Description: {0}", description);
 
-            //first few actors
-            Dictionary<string,string> actorsList = new Dictionary<string,string>();
-            var briefActors = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
-            foreach (IWebElement actor in briefActors)
-            {
-                string actorID = (Regex.Match(actor.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
-                actorsList.Add(actor.Text, actorID);
-                Console.WriteLine("- actor: {0} ({1})", actor.Text, actorID);
-            }
-
             //directors
             Dictionary<string, string> directorsList = new Dictionary<string, string>();
             var directors = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='director']/a");
@@ -126,6 +116,27 @@ namespace imdb_parser
                 Console.WriteLine("-- director: {0} ({1})", director.Text, directorID);
             }
 
+            //TODO: add all actors perhaps?
+            //first few actors
+            Dictionary<string,string> actorsList = new Dictionary<string,string>();
+            var briefActors = driver.FindElementsByXPath("//div[@class='credit_summary_item']/span[@itemprop='actors']/a");
+            foreach (IWebElement actor in briefActors)
+            {
+                string actorID = (Regex.Match(actor.GetAttribute("href"), @"imdb.com\/name\/(.*?)\?")).Groups[1].Value;
+                actorsList.Add(actor.Text, actorID);
+                Console.WriteLine("- actor: {0} ({1})", actor.Text, actorID);
+            }
+
+            //get actors' photos
+            Dictionary<string, string> actorsPhotos = new Dictionary<string, string>();
+            foreach (KeyValuePair<string, string> actor in actorsList)
+            {
+                driver.Navigate().GoToUrl("http://www.imdb.com/name/" + actor.Value);
+                var actorPhoto = driver.FindElementByXPath("//td[@id='img_primary']/div[@class='image']/a");
+                Console.WriteLine("- photo url: {0}", actorPhoto.GetAttribute("href"));
+                actorsPhotos.Add(actor.Value, actorPhoto.GetAttribute("href"));
+            }
+
             //stills
             List<string> stillsList = new List<string>();
             driver.Navigate().GoToUrl("http://www.imdb.com/title/" + movieID + "/mediaindex?refine=still_frame");
@@ -134,19 +145,18 @@ namespace imdb_parser
             {
                 stillsList.Add(thumbnail.GetAttribute("src"));
             }
-            driver.Navigate().Back();
 
             //save everything to mysql db
-            saveToMySQL(movieID, title, year, genresList, description, actorsList, directorsList, stillsList);
+            saveToMySQL(movieID, title, year, genresList, description, actorsList, directorsList, stillsList, actorsPhotos);
             actorsList.Clear();
             directorsList.Clear();
         }
 
-        static void saveToMySQL(string movieID, string title, string year, List<string> genresList, string description, Dictionary<string,string> actorsList, Dictionary<string, string> directorsList, List<string> stillsList)
+        static void saveToMySQL(string movieID, string title, string year, List<string> genresList, string description, Dictionary<string, string> actorsList, Dictionary<string, string> directorsList, List<string> stillsList, Dictionary<string, string> actorsPhotos)
         {
             MySQL mysql = new MySQL();
             mysql.connect("localhost", "3306", "imdb_test", "root", "");
-            mysql.upload(movieID, title, year, genresList, description, actorsList, directorsList, stillsList);
+            mysql.upload(movieID, title, year, genresList, description, actorsList, directorsList, stillsList, actorsPhotos);
             mysql.disconnect();
         }
     }
