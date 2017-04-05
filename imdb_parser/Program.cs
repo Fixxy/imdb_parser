@@ -41,6 +41,7 @@ namespace imdb_parser
 
                 Console.WriteLine("Opening IMDb.com");
                 string startURL = "http://www.imdb.com/search/title?year=" + startYear + "," + endYear + "&title_type=feature&sort=moviemeter,asc&count=" + rpp + "&start=" + startFrom + "" + genresURL;
+                Console.WriteLine(startURL);
                 driver.Navigate().GoToUrl(startURL);
 
                 //get a number of titles, that we've got
@@ -132,9 +133,21 @@ namespace imdb_parser
             foreach (KeyValuePair<string, string> actor in actorsList)
             {
                 driver.Navigate().GoToUrl("http://www.imdb.com/name/" + actor.Value);
-                var actorPhoto = driver.FindElementByXPath("//td[@id='img_primary']/div[@class='image']/a");
-                Console.WriteLine("- photo url: {0}", actorPhoto.GetAttribute("href"));
-                actorsPhotos.Add(actor.Value, actorPhoto.GetAttribute("href"));
+
+                IWebElement actorPhoto;
+                try
+                {
+                    actorPhoto = driver.FindElementByXPath("//td[@id='img_primary']/div[@class='image']/a");
+                    Console.WriteLine(" -- photo url: {0}", actorPhoto.GetAttribute("href"));
+                    actorsPhotos.Add(actor.Value, actorPhoto.GetAttribute("href"));
+                }
+                catch
+                {
+                    actorPhoto = driver.FindElementByXPath("//div[@class='no-pic-wrapper']/a/img[@class='no-pic-image']");
+                    Console.WriteLine(" -- no photo found");
+                    actorsPhotos.Add(actor.Value, actorPhoto.GetAttribute("src"));
+                }
+                
             }
 
             //stills

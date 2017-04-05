@@ -67,7 +67,7 @@ namespace imdb_parser
                     else
                     {
                         Console.WriteLine("Actor {0} was not found, adding...", actor.Value);
-                        string mysqlInsertActors = "INSERT INTO imdb_test.actors (actor_name, actor_id) VALUES ('" + actor.Key + "', '" + actor.Value + "');";
+                        string mysqlInsertActors = "INSERT INTO imdb_test.actors (actor_name, actor_id) VALUES ('" + trimChars(actor.Key) + "', '" + actor.Value + "');";
                         dbcmd.CommandText = mysqlInsertActors;
                         dbcmd.ExecuteNonQuery();
                     }
@@ -96,7 +96,7 @@ namespace imdb_parser
                     else
                     {
                         Console.WriteLine("Director {0} was not found, adding...", director.Value);
-                        string mysqlInsertDirectors = "INSERT INTO imdb_test.directors (director_name, director_id) VALUES ('" + director.Key + "', '" + director.Value + "');";
+                        string mysqlInsertDirectors = "INSERT INTO imdb_test.directors (director_name, director_id) VALUES ('" + trimChars(director.Key) + "', '" + director.Value + "');";
                         dbcmd.CommandText = mysqlInsertDirectors;
                         dbcmd.ExecuteNonQuery();
                     }
@@ -104,9 +104,8 @@ namespace imdb_parser
                 //add stills
                 foreach (string still in stillsList)
                 {
-                    string stillRegex = Regex.Replace(still, @"images-na.ssl-images-amazon.com(.*?)\@(.*?)\.jpg", @"images-na.ssl-images-amazon.com$1@._V1_.jpg", RegexOptions.Compiled);
-                    //Console.WriteLine("{0}", stillRegex);
-                    string mysqlInsertStills = "INSERT INTO imdb_test.stills (gid, url) VALUES ('" + movieID + "', '" + stillRegex + "');";
+                    string stillFixed = still.Replace(",100,100", "").Replace("UY100", "").Replace("UX100", "");
+                    string mysqlInsertStills = "INSERT INTO imdb_test.stills (gid, url) VALUES ('" + movieID + "', '" + stillFixed + "');";
                     dbcmd.CommandText = mysqlInsertStills;
                     dbcmd.ExecuteNonQuery();
                 }
