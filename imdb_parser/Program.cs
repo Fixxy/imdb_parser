@@ -16,7 +16,8 @@ namespace imdb_parser
         {
             if (args.Length == 0)
             {
-                Console.WriteLine("No arguments provided.\nSyntax: .exe <start_year> <end_year> <starting_record> <genres> <records_per_page>");
+                Console.WriteLine("No arguments provided.\nSyntax: .exe <sorting> <start_year> <end_year> <starting_record> <genres> <records_per_page>");
+                Console.WriteLine("Sorting mode: p - sort by popularity; v - sort by the number of votes");
                 Console.WriteLine("\r\nGenres: all - all genres;");
                 Console.WriteLine("        specific - action,adventure,animation,biography,comedy,crime,documentary,");
                 Console.WriteLine("        drama,family,fantasy,film_noir,game_show,history,horror,music,musical,");
@@ -24,13 +25,19 @@ namespace imdb_parser
             }
             else
             {
-                string startYear = args[0];
-                string endYear = args[1];
-                string startFrom = args[2];
+                string sortMode = "";
+
+                if (args[0] == "p") { sortMode = "&sort=moviemeter,asc"; }
+                else if (args[0] == "v") { sortMode = "&sort=num_votes,desc"; }
+
+
+                string startYear = args[1];
+                string endYear = args[2];
+                string startFrom = args[3];
                 string genresURL = "";
-                string genres = args[3].Trim();
+                string genres = args[4].Trim();
                 if (genres != "all") { genresURL = "&genres=" + genres; }
-                string rpp = args[4];
+                string rpp = args[5];
 
                 //initialize PhantomJS
                 Console.WriteLine("Initializing PhantomJS");
@@ -40,7 +47,7 @@ namespace imdb_parser
                 PhantomJSDriver driver = new PhantomJSDriver(service);
 
                 Console.WriteLine("Opening IMDb.com");
-                string startURL = "http://www.imdb.com/search/title?year=" + startYear + "," + endYear + "&title_type=feature&sort=moviemeter,asc&count=" + rpp + "&start=" + startFrom + "" + genresURL;
+                string startURL = "http://www.imdb.com/search/title?year=" + startYear + "," + endYear + "&title_type=feature" + sortMode + "&count=" + rpp + "&start=" + startFrom + "" + genresURL;
                 Console.WriteLine(startURL);
                 driver.Navigate().GoToUrl(startURL);
 
@@ -138,7 +145,8 @@ namespace imdb_parser
                 try
                 {
                     actorPhoto = driver.FindElementByXPath("//td[@id='img_primary']/div[@class='image']/a");
-                    Console.WriteLine(" -- photo url: {0}", actorPhoto.GetAttribute("href"));
+                    //debug
+                    //Console.WriteLine(" -- photo url: {0}", actorPhoto.GetAttribute("href"));
                     actorsPhotos.Add(actor.Value, actorPhoto.GetAttribute("href"));
                 }
                 catch
